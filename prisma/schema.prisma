@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderType {
+  PURCHASE
+  SALE
+}
+
+enum OrderStatus {
+  DRAFT
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum StockMovementType {
+  IN
+  OUT
+}
+
+enum ReceivableStatus {
+  OPEN
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model Product {
+  id             String          @id @default(cuid())
+  name           String
+  brand          String          @default("")
+  model          String          @default("")
+  unit           String?
+  tireSize       String?
+  tireSpeedIndexId String?
+  tireSpeedIndex   TireSpeedIndex? @relation(fields: [tireSpeedIndexId], references: [id])
+  tireLoadIndexId  String?
+  tireLoadIndex    TireLoadIndex?  @relation(fields: [tireLoadIndexId], references: [id])
+  tireIsXL       Boolean         @default(false)
+  tireIsRunFlat  Boolean         @default(false)
+  tireBrandId    String?
+  tireBrand      TireBrand?      @relation(fields: [tireBrandId], references: [id])
+  tireModelId    String?
+  tireModel      TireModel?      @relation(fields: [tireModelId], references: [id])
+  autoSubcategory String?
+  categoryId     String
+  category       Category        @relation(fields: [categoryId], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  stockMovements StockMovement[]
+  orderItems     OrderItem[]
+}
+
+model TireBrand {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  models    TireModel[]
+  products  Product[]
+  createdAt DateTime   @default(now())
+}
+
+model TireModel {
+  id        String    @id @default(cuid())
+  name      String
+  brandId   String
+  brand     TireBrand @relation(fields: [brandId], references: [id])
+  products  Product[]
+  createdAt DateTime  @default(now())
+
+  @@unique([name, brandId])
+}
+
+model TireSpeedIndex {
+  id      String   @id @default(cuid())
+  code    String   @unique
+  maxKph  Int
+  tires   Product[]
+}
+
+model TireLoadIndex {
+  id      String   @id @default(cuid())
+  code    String   @unique
+  maxKg   Float
+  tires   Product[]
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+
+model Customer {
+  id         String       @id @default(cuid())
+  name       String
+  phone      String?
+  email      String?
+  isActive   Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  orders     Order[]
+  receivable Receivable[]
+}
+
+model Order {
+  id          String       @id @default(cuid())
+  type        OrderType
+  status      OrderStatus  @default(DRAFT)
+  orderDate   DateTime     @default(now())
+  supplierId  String?
+  customerId  String?
+  supplier    Supplier?    @relation(fields: [supplierId], references: [id])
+  customer    Customer?    @relation(fields: [customerId], references: [id])
+  totalCents  Int          @default(0)
+  items       OrderItem[]
+  stockMoves  StockMovement[]
+  receivables Receivable[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  productId  String
+  quantity   Int
+  priceCents Int
+  order      Order    @relation(fields: [orderId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+}
+
+model StockMovement {
+  id         String            @id @default(cuid())
+  productId  String
+  type       StockMovementType
+  quantity   Int
+  orderId    String?
+  createdAt  DateTime          @default(now())
+  product    Product           @relation(fields: [productId], references: [id])
+  order      Order?            @relation(fields: [orderId], references: [id])
+}
+
+model Receivable {
+  id          String           @id @default(cuid())
+  customerId  String
+  orderId     String?
+  amountCents Int
+  paidCents   Int              @default(0)
+  dueDate     DateTime
+  status      ReceivableStatus @default(OPEN)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  customer    Customer         @relation(fields: [customerId], references: [id])
+  order       Order?           @relation(fields: [orderId], references: [id])
+}
