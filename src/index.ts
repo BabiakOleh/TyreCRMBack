@@ -10,6 +10,7 @@ import counterpartiesRouter from "./routes/counterparties";
 import unitsRouter from "./routes/units";
 import autoSubcategoriesRouter from "./routes/auto-subcategories";
 import ordersRouter from "./routes/orders";
+import stockRouter from "./routes/stock";
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use("/api/counterparties", counterpartiesRouter);
 app.use("/api/units", unitsRouter);
 app.use("/api/auto-subcategories", autoSubcategoriesRouter);
 app.use("/api/orders", ordersRouter);
+app.use("/api/stock", stockRouter);
 
 app.use(
   (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

@@ -180,6 +180,7 @@ model Counterparty {
 
 model Order {
   id          String       @id @default(cuid())
+  documentNumber String?   @unique
   type        OrderType
   status      OrderStatus  @default(DRAFT)
   orderDate   DateTime     @default(now())
@@ -197,6 +198,13 @@ model Order {
   updatedAt   DateTime     @updatedAt
 
   @@index([counterpartyId])
+}
+
+model DocumentSequence {
+  id         String    @id @default(cuid())
+  type       OrderType @unique
+  nextNumber Int       @default(1)
+  updatedAt  DateTime  @updatedAt
 }
 
 model OrderItem {
