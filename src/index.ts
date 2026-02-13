@@ -6,6 +6,7 @@ import productsRouter from "./routes/products";
 import tireBrandsRouter from "./routes/tire-brands";
 import tireModelsRouter from "./routes/tire-models";
 import tireIndicesRouter from "./routes/tire-indices";
+import counterpartiesRouter from "./routes/counterparties";
 import prisma from "./prisma";
 
 const app = express();
@@ -22,6 +23,7 @@ app.use("/api/products", productsRouter);
 app.use("/api/tire-brands", tireBrandsRouter);
 app.use("/api/tire-models", tireModelsRouter);
 app.use("/api/tire-indices", tireIndicesRouter);
+app.use("/api/counterparties", counterpartiesRouter);
 
 app.use(
   (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
