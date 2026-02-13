@@ -171,6 +171,7 @@ model Counterparty {
   isActive  Boolean          @default(true)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
+  orders    Order[]
 
   @@index([type, isActive])
   @@index([name])
@@ -182,6 +183,8 @@ model Order {
   type        OrderType
   status      OrderStatus  @default(DRAFT)
   orderDate   DateTime     @default(now())
+  counterpartyId String?
+  counterparty   Counterparty? @relation(fields: [counterpartyId], references: [id])
   supplierId  String?
   customerId  String?
   supplier    Supplier?    @relation(fields: [supplierId], references: [id])
@@ -192,6 +195,8 @@ model Order {
   receivables Receivable[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  @@index([counterpartyId])
 }
 
 model OrderItem {

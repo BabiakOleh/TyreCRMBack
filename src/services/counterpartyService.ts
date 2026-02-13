@@ -19,12 +19,53 @@ export const listCounterparties = async (filters: ListFilters) => {
     ];
   }
 
-  const args = {
-    where,
-    orderBy: { name: "asc" }
-  } as unknown as Parameters<typeof prisma.counterparty.findMany>[0];
+  type CounterpartyRow = {
+    id: string;
+    type: "CUSTOMER" | "SUPPLIER";
+    name: string;
+    phone: string;
+    email?: string | null;
+    taxId?: string | null;
+    address?: string | null;
+    note?: string | null;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  };
 
-  return prisma.counterparty.findMany(args);
+  const counterparties = (await prisma.counterparty.findMany({
+    where: where as unknown,
+    orderBy: { name: "asc" }
+  } as unknown)) as CounterpartyRow[];
+
+  if (filters.type !== "SUPPLIER" || counterparties.length === 0) {
+    return counterparties;
+  }
+
+  const supplierIds = counterparties.map((item) => item.id);
+  type GroupRow = {
+    counterpartyId: string | null;
+    _sum: { totalCents: number | null };
+  };
+
+  const sums = (await prisma.order.groupBy({
+    by: ["counterpartyId"],
+    where: {
+      type: "PURCHASE",
+      status: { not: "CANCELLED" },
+      counterpartyId: { in: supplierIds }
+    },
+    _sum: { totalCents: true }
+  })) as GroupRow[];
+
+  const totals = new Map(
+    sums.map((row) => [row.counterpartyId, row._sum.totalCents ?? 0])
+  );
+
+  return counterparties.map((item) => ({
+    ...item,
+    payableCents: totals.get(item.id) ?? 0
+  }));
 };
 
 export const createCounterparty = async (input: CounterpartyInput) => {
