@@ -9,31 +9,26 @@ const createSchema = z.object({
 });
 
 router.get("/", async (_req, res) => {
-  const categories = await prisma.category.findMany({
+  const subcategories = await prisma.autoSubcategory.findMany({
     orderBy: { name: "asc" }
   });
-  res.json(categories);
+  res.json(subcategories);
 });
 
 router.post("/", async (req, res, next) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({
-      error: "Invalid data",
-      details: parsed.error.issues
-    });
+    return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
   }
 
-  const normalized = parsed.data.name.trim();
-
   try {
-    const category = await prisma.category.create({
-      data: { name: normalized }
+    const subcategory = await prisma.autoSubcategory.create({
+      data: { name: parsed.data.name.trim() }
     });
-    res.status(201).json(category);
+    res.status(201).json(subcategory);
   } catch (err: any) {
     if (err?.code === "P2002") {
-      return res.status(409).json({ error: "Category already exists" });
+      return res.status(409).json({ error: "Subcategory already exists" });
     }
     next(err);
   }

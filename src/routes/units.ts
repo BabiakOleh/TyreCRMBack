@@ -5,35 +5,30 @@ import prisma from "../prisma";
 const router = Router();
 
 const createSchema = z.object({
-  name: z.string().min(2).max(80)
+  name: z.string().min(1).max(20)
 });
 
 router.get("/", async (_req, res) => {
-  const categories = await prisma.category.findMany({
+  const units = await prisma.unit.findMany({
     orderBy: { name: "asc" }
   });
-  res.json(categories);
+  res.json(units);
 });
 
 router.post("/", async (req, res, next) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({
-      error: "Invalid data",
-      details: parsed.error.issues
-    });
+    return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
   }
 
-  const normalized = parsed.data.name.trim();
-
   try {
-    const category = await prisma.category.create({
-      data: { name: normalized }
+    const unit = await prisma.unit.create({
+      data: { name: parsed.data.name.trim() }
     });
-    res.status(201).json(category);
+    res.status(201).json(unit);
   } catch (err: any) {
     if (err?.code === "P2002") {
-      return res.status(409).json({ error: "Category already exists" });
+      return res.status(409).json({ error: "Unit already exists" });
     }
     next(err);
   }

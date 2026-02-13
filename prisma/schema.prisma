@@ -46,7 +46,8 @@ model Category {
 model Product {
   id             String          @id @default(cuid())
   name           String
-  unit           String?
+  unitId         String?
+  unit           Unit?           @relation(fields: [unitId], references: [id])
   categoryId     String
   category       Category        @relation(fields: [categoryId], references: [id])
   createdAt      DateTime        @default(now())
@@ -82,9 +83,24 @@ model AutoProduct {
   product      Product  @relation(fields: [productId], references: [id])
   brand        String
   model        String
-  subcategory  String
+  subcategoryId String
+  subcategory  AutoSubcategory @relation(fields: [subcategoryId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Unit {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model AutoSubcategory {
+  id        String        @id @default(cuid())
+  name      String        @unique
+  products  AutoProduct[]
+  createdAt DateTime      @default(now())
 }
 
 model TireBrand {
