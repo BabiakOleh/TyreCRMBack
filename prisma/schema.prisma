@@ -24,12 +24,6 @@ enum StockMovementType {
   OUT
 }
 
-enum ReceivableStatus {
-  OPEN
-  PARTIAL
-  PAID
-  OVERDUE
-}
 
 enum CounterpartyType {
   CUSTOMER
@@ -136,28 +130,6 @@ model TireLoadIndex {
   tireProducts TireProduct[]
 }
 
-model Supplier {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  email     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
-}
-
-model Customer {
-  id         String       @id @default(cuid())
-  name       String
-  phone      String?
-  email      String?
-  isActive   Boolean      @default(true)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  orders     Order[]
-  receivable Receivable[]
-}
 
 model Counterparty {
   id        String           @id @default(cuid())
@@ -186,14 +158,9 @@ model Order {
   orderDate   DateTime     @default(now())
   counterpartyId String?
   counterparty   Counterparty? @relation(fields: [counterpartyId], references: [id])
-  supplierId  String?
-  customerId  String?
-  supplier    Supplier?    @relation(fields: [supplierId], references: [id])
-  customer    Customer?    @relation(fields: [customerId], references: [id])
   totalCents  Int          @default(0)
   items       OrderItem[]
   stockMoves  StockMovement[]
-  receivables Receivable[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -228,16 +195,3 @@ model StockMovement {
   order      Order?            @relation(fields: [orderId], references: [id])
 }
 
-model Receivable {
-  id          String           @id @default(cuid())
-  customerId  String
-  orderId     String?
-  amountCents Int
-  paidCents   Int              @default(0)
-  dueDate     DateTime
-  status      ReceivableStatus @default(OPEN)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  customer    Customer         @relation(fields: [customerId], references: [id])
-  order       Order?           @relation(fields: [orderId], references: [id])
-}
