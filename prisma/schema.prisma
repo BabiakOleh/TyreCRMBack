@@ -24,6 +24,17 @@ enum StockMovementType {
   OUT
 }
 
+enum CashDocumentType {
+  INCOME
+  EXPENSE
+}
+
+enum CashDocumentSubtype {
+  SUPPLIER_PAYMENT
+  OTHER_EXPENSE
+  CUSTOMER_PAYMENT
+  OTHER_INCOME
+}
 
 enum CounterpartyType {
   CUSTOMER
@@ -44,6 +55,7 @@ model Product {
   unit           Unit?           @relation(fields: [unitId], references: [id])
   categoryId     String
   category       Category        @relation(fields: [categoryId], references: [id])
+  isActive       Boolean         @default(true)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   stockMovements StockMovement[]
@@ -143,7 +155,8 @@ model Counterparty {
   isActive  Boolean          @default(true)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
-  orders    Order[]
+  orders         Order[]
+  cashDocuments  CashDocument[]
 
   @@index([type, isActive])
   @@index([name])
@@ -193,5 +206,23 @@ model StockMovement {
   createdAt  DateTime          @default(now())
   product    Product           @relation(fields: [productId], references: [id])
   order      Order?            @relation(fields: [orderId], references: [id])
+}
+
+model CashDocument {
+  id             String              @id @default(cuid())
+  date           DateTime
+  type           CashDocumentType
+  subtype        CashDocumentSubtype
+  counterpartyId String?
+  counterparty   Counterparty?       @relation(fields: [counterpartyId], references: [id])
+  amountCents    Int
+  note           String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([counterpartyId])
+  @@index([date])
+  @@index([type])
+  @@index([subtype])
 }
 

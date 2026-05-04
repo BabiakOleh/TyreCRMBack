@@ -3,8 +3,12 @@ import { HttpError } from "./errors";
 import type { CounterpartyInput, CounterpartyUpdateInput } from "../validators/counterparties";
 import { ListFilters } from "./types";
 
+type CounterpartyListWhere = NonNullable<
+  Parameters<typeof prisma.counterparty.findMany>[0]
+>["where"];
+
 export const listCounterparties = async (filters: ListFilters) => {
-  const where: Record<string, unknown> = {};
+  const where: CounterpartyListWhere = {};
   if (filters.type) {
     where.type = filters.type;
   }
@@ -13,7 +17,7 @@ export const listCounterparties = async (filters: ListFilters) => {
   }
   if (filters.q) {
     where.OR = [
-      { name: { contains: filters.q, mode: "insensitive" } },
+      { name: { contains: filters.q } },
       { phone: { contains: filters.q } },
       { taxId: { contains: filters.q } }
     ];
@@ -34,32 +38,28 @@ export const listCounterparties = async (filters: ListFilters) => {
   };
 
   const counterparties = (await prisma.counterparty.findMany({
-    where: where as unknown,
+    where,
     orderBy: { name: "asc" }
-  } as unknown)) as CounterpartyRow[];
+  })) as CounterpartyRow[];
 
   if (filters.type !== "SUPPLIER" || counterparties.length === 0) {
     return counterparties;
   }
 
   const supplierIds = counterparties.map((item) => item.id);
-  type GroupRow = {
-    counterpartyId: string | null;
-    _sum: { totalCents: number | null };
-  };
 
-  const sums = (await prisma.order.groupBy({
-    by: ["counterpartyId"],
+  const sums = await prisma.order.groupBy({
+    by: ["counterpartyId"] as const,
     where: {
       type: "PURCHASE",
-      status: { not: "CANCELLED" },
+      status: { in: ["CONFIRMED", "COMPLETED"] },
       counterpartyId: { in: supplierIds }
     },
     _sum: { totalCents: true }
-  })) as GroupRow[];
+  });
 
   const totals = new Map(
-    sums.map((row) => [row.counterpartyId, row._sum.totalCents ?? 0])
+    sums.map((row: (typeof sums)[number]) => [row.counterpartyId, row._sum.totalCents ?? 0])
   );
 
   return counterparties.map((item) => ({

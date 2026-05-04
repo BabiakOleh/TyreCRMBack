@@ -1,11 +1,19 @@
+import type { Prisma } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
 import prisma from "../prisma";
 
 const router = Router();
 
+/** Замовлення, що впливають на залишок (резерв і проведення). */
+const STOCK_STATUSES: Array<"CONFIRMED" | "COMPLETED"> = ["CONFIRMED", "COMPLETED"];
+
 const listSchema = z.object({
   type: z.enum(["PURCHASE", "SALE"]).optional()
+});
+
+const statusUpdateSchema = z.object({
+  status: z.enum(["CONFIRMED", "COMPLETED", "CANCELLED"])
 });
 
 const normalizeEmpty = (value: unknown) => {
@@ -32,7 +40,7 @@ const createSchema = z.object({
 
 const updateSchema = createSchema;
 
-const generateDocumentNumber = async (tx: typeof prisma, type: "PURCHASE" | "SALE") => {
+const generateDocumentNumber = async (tx: Prisma.TransactionClient, type: "PURCHASE" | "SALE") => {
   const sequence = await tx.documentSequence.upsert({
     where: { type },
     update: { nextNumber: { increment: 1 } },
@@ -54,18 +62,18 @@ const buildQuantityMap = (
 };
 
 const getTotalsByProduct = async (
-  tx: typeof prisma,
+  tx: Prisma.TransactionClient,
   type: "PURCHASE" | "SALE",
   productIds: string[],
   excludeOrderId?: string
 ) => {
   const where: {
     productId: { in: string[] };
-    order: { type: "PURCHASE" | "SALE"; status: { not: "CANCELLED" } };
+    order: { type: "PURCHASE" | "SALE"; status: { in: typeof STOCK_STATUSES } };
     orderId?: { not: string };
   } = {
     productId: { in: productIds },
-    order: { type, status: { not: "CANCELLED" } }
+    order: { type, status: { in: STOCK_STATUSES } }
   };
   if (excludeOrderId) {
     where.orderId = { not: excludeOrderId };
@@ -85,7 +93,7 @@ const getTotalsByProduct = async (
 };
 
 const validateStock = async (
-  tx: typeof prisma,
+  tx: Prisma.TransactionClient,
   params: {
     type: "PURCHASE" | "SALE";
     productIds: string[];
@@ -135,6 +143,43 @@ router.get("/", async (req, res) => {
     orderBy: { orderDate: "desc" }
   });
   res.json(orders);
+});
+
+router.patch("/:id/status", async (req, res, next) => {
+  const parsed = statusUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
+  }
+
+  try {
+    const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    const { status: nextStatus } = parsed.data;
+    const current = existing.status;
+
+    const allowed: Record<string, string[]> = {
+      DRAFT: ["CONFIRMED", "CANCELLED"],
+      CONFIRMED: ["COMPLETED", "CANCELLED"],
+      COMPLETED: [],
+      CANCELLED: []
+    };
+
+    if (!allowed[current]?.includes(nextStatus)) {
+      return res.status(400).json({ error: "Invalid status transition" });
+    }
+
+    const updated = await prisma.order.update({
+      where: { id: req.params.id },
+      data: { status: nextStatus as "CONFIRMED" | "COMPLETED" | "CANCELLED" },
+      include: { counterparty: true }
+    });
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get("/:id", async (req, res) => {
@@ -248,8 +293,11 @@ router.post("/", async (req, res, next) => {
       });
     });
 
-    if ("error" in order) {
+    if (order && "error" in order) {
       return res.status(409).json({ error: "Insufficient stock", details: order.details });
+    }
+    if (!order) {
+      return res.status(500).json({ error: "Order create failed" });
     }
     res.status(201).json(order);
   } catch (err: any) {
@@ -270,6 +318,9 @@ router.put("/:id", async (req, res, next) => {
     const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
     if (!existing) {
       return res.status(404).json({ error: "Order not found" });
+    }
+    if (existing.status === "COMPLETED" || existing.status === "CANCELLED") {
+      return res.status(400).json({ error: "Cannot edit order in this status" });
     }
     if (existing.type !== parsed.data.type) {
       return res.status(400).json({ error: "Order type mismatch" });
@@ -358,8 +409,11 @@ router.put("/:id", async (req, res, next) => {
       });
     });
 
-    if ("error" in order) {
+    if (order && "error" in order) {
       return res.status(409).json({ error: "Insufficient stock", details: order.details });
+    }
+    if (!order) {
+      return res.status(500).json({ error: "Order update failed" });
     }
     res.json(order);
   } catch (err: any) {

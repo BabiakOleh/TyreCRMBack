@@ -3,6 +3,8 @@ import prisma from "../prisma";
 
 const router = Router();
 
+const STOCK_STATUSES = ["CONFIRMED", "COMPLETED"] as const;
+
 const toMap = (rows: Array<{ productId: string; _sum: { quantity: number | null } }>) => {
   const map = new Map<string, number>();
   for (const row of rows) {
@@ -15,12 +17,12 @@ router.get("/", async (_req, res) => {
   const [purchases, sales, products] = await Promise.all([
     prisma.orderItem.groupBy({
       by: ["productId"],
-      where: { order: { type: "PURCHASE", status: { not: "CANCELLED" } } },
+      where: { order: { type: "PURCHASE", status: { in: [...STOCK_STATUSES] } } },
       _sum: { quantity: true }
     }),
     prisma.orderItem.groupBy({
       by: ["productId"],
-      where: { order: { type: "SALE", status: { not: "CANCELLED" } } },
+      where: { order: { type: "SALE", status: { in: [...STOCK_STATUSES] } } },
       _sum: { quantity: true }
     }),
     prisma.product.findMany({

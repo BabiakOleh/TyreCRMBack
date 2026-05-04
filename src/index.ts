@@ -11,6 +11,8 @@ import unitsRouter from "./routes/units";
 import autoSubcategoriesRouter from "./routes/auto-subcategories";
 import ordersRouter from "./routes/orders";
 import stockRouter from "./routes/stock";
+import cashDocumentsRouter from "./routes/cash-documents";
+import reportsRouter from "./routes/reports";
 
 const app = express();
 
@@ -31,6 +33,8 @@ app.use("/api/units", unitsRouter);
 app.use("/api/auto-subcategories", autoSubcategoriesRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/stock", stockRouter);
+app.use("/api/cash-documents", cashDocumentsRouter);
+app.use("/api/reports", reportsRouter);
 
 app.use(
   (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
